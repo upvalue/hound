@@ -1,0 +1,5 @@
+- [x] refactor components to be less terrible
+- [ ] make things look good
+- [ ] highlight individual search resutls
+- [ ] improve perf (paginate?)
+- [ ] debounce

@@ -7,6 +7,9 @@ Mainly, I wanted to make search automatic on an interval (as livegrep).
 Then I got really sidetracked upgrading React so I could use devtools, and ran
 into enough trouble with that that I just wrote another frontend really quickly.
 
+n.b. super quick & dirty writeup. Probably not at all well patterned or
+efficient.
+
 Other frontend is in `frontend/`
 
 To run locally
@@ -18,6 +21,13 @@ Start Hound
 Start Remix
 
 > cd frontend && pnpm i && pnpm remix dev
+
+# Look & feel
+
+This uses DaisyUI & prism highlighter. Themes are currently hardcoded, but both 
+of them have several themes to choose from.
+
+
 
 # Hound
 

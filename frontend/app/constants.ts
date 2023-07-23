@@ -1,0 +1,1 @@
+export const HOUND_URI = "http://localhost:6080/api/v1";

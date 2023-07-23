@@ -2,10 +2,16 @@ import { cssBundleHref } from "@remix-run/css-bundle";
 import { Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration } from "@remix-run/react";
 import { LinksFunction } from "@remix-run/server-runtime";
 
-import stylesheet from "~/tailwind.css";
+import stylesheet from "~/styles/tailwind.css";
+import houndStylesheet from "~/styles/hound.css";
+import interStylesheet from 'inter-ui/inter.css'
+import jetbrainsStylesheet from '@fontsource/jetbrains-mono/400.css';
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: stylesheet },
+  { rel: "stylesheet", href: houndStylesheet },
+  { rel: "stylesheet", href: interStylesheet },
+  { rel: "stylesheet", href: jetbrainsStylesheet },
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
 ];
 
