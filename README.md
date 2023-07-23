@@ -1,3 +1,24 @@
+# This fork
+
+This fork is an alternative frontend to Hound.
+
+Mainly, I wanted to make search automatic on an interval (as livegrep).
+
+Then I got really sidetracked upgrading React so I could use devtools, and ran
+into enough trouble with that that I just wrote another frontend really quickly.
+
+Other frontend is in `frontend/`
+
+To run locally
+
+Start Hound
+
+> make && .build/bin/houndd --dev
+
+Start Remix
+
+> cd frontend && pnpm i && pnpm remix dev
+
 # Hound
 
 [![Build Status](https://travis-ci.org/hound-search/hound.svg?branch=master)](https://travis-ci.org/hound-search/hound)

@@ -9,3 +9,4 @@
 dist/
 config.json
 /ui/.build
+/frontend/node_modules

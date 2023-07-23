@@ -925,6 +925,7 @@ var ResultView = React.createClass({
         return { results: null };
     },
     render: function () {
+        console.log(Model);
         if (this.state.error) {
             return (
                 <div id="no-result" className="error">
