@@ -1,27 +1,34 @@
 import axios from "axios";
 import classNames from "classnames";
 import { Highlight, themes } from "prism-react-renderer";
-import React from "react";
+import React, { useState } from "react";
 import { useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useQuery } from "react-query";
 import { ClientOnly } from "remix-utils";
 import { HOUND_URI } from "~/constants";
 import { HoundConfig, HoundConfigRepo, HoundFileMatch, HoundRepoResult, HoundSearchResult } from "~/types";
-import { UrlParts } from "~/utils";
+import { UrlParts, UrlToRepo } from "~/utils";
+
+import frontendConfig from '../../config.json';
 
 const FileResults = ({
     fileResult,
+    repoConfig,
+    revision,
 }: {
+    repoConfig: HoundConfigRepo,
     fileResult: HoundFileMatch,
+    revision: string,
 }) => {
+    const { Matches, Filename } = fileResult;
+    const fileUrl = UrlToRepo(repoConfig, Filename, Matches[0].LineNumber, revision);
     return <>
         <div className="prose">
-            <h4>{fileResult.Filename}</h4>
+            <h4><a href={fileUrl}>{Filename}</a></h4>
         </div>
-        {fileResult.Matches.slice(0, 10).map(match => {
+        {Matches.slice(0, 10).map(match => {
             const beginLine = match.LineNumber - match.Before.length;
-            console.log(match);
             return <Highlight
                 key={beginLine}
                 language="go"
@@ -30,86 +37,55 @@ const FileResults = ({
             >
                 {({ className, style, tokens, getLineProps, getTokenProps }) => {
                     return (
-                        <div className="bg-base-200">
-                            <pre>
-                                {tokens.map((line, i) => (
-                                    <div key={i} {...getLineProps({ line })}>
-                                        <span className={classNames('whitespace-pre-wrap', beginLine + i == match.LineNumber && 'font-bold')}>{(beginLine + i + 1).toString().padEnd(5, ' ')}</span>
-                                        {line.map((token, key) => (
-                                            <span key={key} {...getTokenProps({ token })} />
-                                        ))}
-                                    </div>
-                                ))}
-                            </pre>
+                        <div className="grid grid-cols-[auto,1fr] ">
+                            {
+                                tokens.map((line, i) => {
+                                    return (
+                                        <React.Fragment key={i}>
+                                            <div className={classNames('bg-base-300 whitespace-pre-wrap text-right select-none font-mono py-0.5 px-2', beginLine + i == match.LineNumber && 'font-bold text-white')}>{(beginLine + i + 1).toString().padStart(5, ' ')}</div>
+                                            <div className="py-0.5 px-1 bg-base-200 font-mono whitespace-pre-wrap">
+                                                <div key={i} {...getLineProps({ line })}>
+                                                    {line.map((token, key) => (
+                                                        <span key={key} {...getTokenProps({ token })} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </React.Fragment>
+                                    );
+                                })
+                            }
                         </div>
                     )
                 }}
-            </Highlight>
+            </Highlight >
         })}
     </>
 }
 
-const RepoResults = ({
-    repo,
-    repoName,
-    repoResults,
+const Repo = ({
+    repoConfig,
+    repoName
 }: {
-    repo: HoundConfigRepo,
-    repoName: string,
-    repoResults: Array<HoundFileMatch>,
+    repoConfig: HoundConfigRepo,
+    repoName: string
 }) => {
-    return <>
-        <div className="prose flex">
-            <h3>{repoName}</h3>
-            <a href={UrlParts(repo).url}>link</a>
-        </div>
-        {repoResults.map(fileResult => <FileResults key={repoName} fileResult={fileResult} />)}
-    </>;
+    const parts = UrlParts(repoConfig);
+    const rest = parts.url.split('/').slice(-2);
+    return <div className="prose flex mt-2 mb-2">
+        <h3>
+            <a href={parts.url}>{rest[0]} / {rest[1]}</a>
+        </h3>
+    </div>
 }
 
 const Results = ({
     config,
-    result,
+    query,
 }: {
     config: HoundConfig;
-    result?: HoundSearchResult;
+    query: string,
 }) => {
-    if (!result) {
-        return "bye";
-    }
-
-    const repoNameMap: { [key: string]: string } = {};
-
-    return (
-        Object.keys(result.Results).map((repo) => {
-            const res = result.Results[repo];
-            const repoConfig = config.repos[repo];
-            return (
-                <>
-                    <RepoResults
-                        repo={repoConfig}
-                        repoName={repo}
-                        repoResults={result.Results[repo].Matches}
-                    />
-
-                </>
-            );
-        })
-    );
-};
-
-/**
- * Search component
- */
-export const Search = ({ config }: { config: HoundConfig }) => {
-    const [query, setQuery] = React.useState("asdf");
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    useHotkeys('ctrl+k', () => {
-        if (inputRef.current) {
-            inputRef.current.focus();
-        }
-    });
+    const [truncate, _setTruncate] = useState(true);
 
     const queryParams = new URLSearchParams([
         ["stats", "fosho"],
@@ -120,10 +96,81 @@ export const Search = ({ config }: { config: HoundConfig }) => {
         ["q", query],
     ]);
 
+    if (frontendConfig.truncateResultsAfter) {
+        queryParams.set("limit", frontendConfig.truncateResultsAfter.toString());
+    }
+
     const { data: queryRes } = useQuery(
         ["repo", query],
         () => axios.get<HoundSearchResult>(`${HOUND_URI}/search?${queryParams.toString()}`),
     );
+
+    const result = queryRes?.data
+
+    if (!result) {
+        return "no result";
+    }
+
+    const { truncateResultsAfter } = frontendConfig;
+
+    // In order to truncate properly we collapse the repo/file results
+    // into a single array
+    type ResultFileRender = { type: 'file', result: HoundFileMatch, repoConfig: HoundConfigRepo, revision: string };
+    type ResultRender = { type: 'repo', repoConfig: HoundConfigRepo, repoName: string } | ResultFileRender;
+
+    const results: Array<ResultRender> = Object.keys(result.Results).flatMap((repo) => [
+        {
+            type: 'repo',
+            repoConfig: config.repos[repo],
+            repoName: repo,
+        },
+        ...result.Results[repo].Matches.map((match): ResultFileRender => ({
+            revision: result.Results[repo].Revision,
+            type: 'file',
+            repoConfig: config.repos[repo],
+            result: match
+        }))
+    ]);
+
+    let truncatedResults = results.slice(0, truncate ? truncateResultsAfter : results.length);
+
+    // Don't show only a repository
+    if (truncatedResults.length > 0 && truncatedResults.slice(-1)[0].type === 'repo') {
+        truncatedResults = truncatedResults.slice(0, -1);
+    }
+
+    return <>
+        {truncatedResults.map(r => {
+            if (r.type === 'repo') {
+                return (
+                    <Repo key={r.repoConfig.url} repoConfig={r.repoConfig} repoName={r.repoName} />
+                )
+            } else if (r.type === 'file') {
+                return (
+                    <FileResults key={r.result.Filename} revision={r.revision} repoConfig={r.repoConfig} fileResult={r.result} />
+                );
+            }
+        })}
+    </>
+
+
+
+};
+
+/**
+ * Search component
+ */
+export const Search = ({ config }: { config: HoundConfig }) => {
+    const [query, setQuery] = React.useState("asdf");
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    console.log(frontendConfig.keys);
+
+    useHotkeys(frontendConfig.keys.FOCUS_SEARCH, () => {
+        if (inputRef.current) {
+            inputRef.current.focus();
+        }
+    });
 
     return (
         <div className="flex flex-col pt-4">
@@ -136,9 +183,7 @@ export const Search = ({ config }: { config: HoundConfig }) => {
                 }}
                 ref={inputRef}
             />
-            <ClientOnly fallback={<div>loading...</div>}>
-                {() => <Results config={config} result={queryRes && queryRes.data && queryRes.data} />}
-            </ClientOnly>
+            <Results query={query} config={config} />
         </div>
     );
 };

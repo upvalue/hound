@@ -27,6 +27,8 @@ export type HoundFileMatch = {
 
 export type HoundRepoResult = {
     Matches: Array<HoundFileMatch>;
+    FilesWithMatch: number;
+    Revision: string;
 }
 
 export type HoundRepoResults = {

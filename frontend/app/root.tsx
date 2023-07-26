@@ -6,12 +6,14 @@ import stylesheet from "~/styles/tailwind.css";
 import houndStylesheet from "~/styles/hound.css";
 import interStylesheet from 'inter-ui/inter.css'
 import jetbrainsStylesheet from '@fontsource/jetbrains-mono/400.css';
+import jetbrainsStylesheet700 from '@fontsource/jetbrains-mono/700.css';
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: stylesheet },
   { rel: "stylesheet", href: houndStylesheet },
   { rel: "stylesheet", href: interStylesheet },
   { rel: "stylesheet", href: jetbrainsStylesheet },
+  { rel: "stylesheet", href: jetbrainsStylesheet700 },
   ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
 ];
 
